@@ -78,6 +78,16 @@ int main() {
  assert(Read(original)==base);
  std::string cancelled=folder+"/Cancel output [RHP 44].gba";
  assert(access(cancelled.c_str(),F_OK)!=0&&access((cancelled+".part-0").c_str(),F_OK)!=0);
+ std::string dsOriginal=folder+"/original.nds",dsInstalled;
+ Write(dsOriginal,base);
+ assert(InstallPatch(dsOriginal,bps,folder,"DS example",45,CRC(base),dsInstalled,error));
+ assert(dsInstalled==folder+"/DS example [RHP 45].nds");
+ assert(Read(dsInstalled)==wanted&&Read(dsOriginal)==base);
+ assert(!InstallPatch(dsOriginal,bps,folder,"DS example",45,CRC(base),duplicate,error));
+ assert(Read(dsInstalled)==wanted&&Read(dsOriginal)==base);
+ assert(!InstallPatch(dsOriginal,bps,folder,"Wrong base",46,CRC(wrong),duplicate,error));
+ assert(Read(dsOriginal)==base);
+ unlink(dsInstalled.c_str()); unlink(dsOriginal.c_str());
  unlink(installed.c_str()); unlink(original.c_str()); rmdir(folder.c_str());
  std::cout<<"Patch module checks passed.\n";
 }

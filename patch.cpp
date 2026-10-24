@@ -230,7 +230,7 @@ bool InstallPatch(const std::string& original,const Bytes& download,const std::s
  if (name.empty()||name=="."||name=="..") name="ROM hack";
  size_t dot=original.rfind('.'); std::string ext=dot==std::string::npos?"":original.substr(dot);
  std::transform(ext.begin(),ext.end(),ext.begin(),[](unsigned char c){return char(std::tolower(c));});
- if (ext!=".gba"&&ext!=".gb"&&ext!=".gbc"&&ext!=".agb"&&ext!=".sgb"&&ext!=".dmg") return Fail(error,"Select an uncompressed Game Boy or Game Boy Advance ROM.");
+ if (ext!=".gba"&&ext!=".gb"&&ext!=".gbc"&&ext!=".agb"&&ext!=".sgb"&&ext!=".dmg"&&ext!=".nds") return Fail(error,"Select a supported uncompressed ROM.");
  if (directory.empty()) return Fail(error,"ROM directory is not configured.");
  std::string destination=directory+(directory.back()=='/'?"":"/")+name+" [RHP "+std::to_string(entryId)+"]"+ext;
  // The reservation prevents replacing a user's existing ROM, even if its name matches.

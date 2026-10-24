@@ -13,7 +13,10 @@
 namespace romhackplaza {
 using Bytes = std::vector<uint8_t>;
 using PatchProgress = std::function<bool(size_t, size_t)>;
-constexpr size_t MaxRomSize = 64 * 1024 * 1024;
+#ifndef ROMHACKPLAZA_MAX_ROM_SIZE
+#define ROMHACKPLAZA_MAX_ROM_SIZE (64 * 1024 * 1024)
+#endif
+constexpr size_t MaxRomSize = ROMHACKPLAZA_MAX_ROM_SIZE;
 // Returning false from progress cancels the operation. IPS requires an externally verified base.
 bool ApplyPatch(const Bytes& base, const Bytes& patch, Bytes& output, std::string& error,
                 bool baseVerified = false, PatchProgress progress = PatchProgress());
