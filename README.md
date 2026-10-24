@@ -4,7 +4,7 @@ A small C++11 library for emulator frontends. It searches Romhack Plaza, reads e
 
 Link the `romhackplaza` CMake target. Dependencies are libcurl and zlib. Call network and patch functions from a worker thread; progress callbacks return false to cancel. Initialize libcurl once before starting workers. API keys belong in application settings, never in source code. Use a key with `entries:read` and `entries:download` scopes.
 
-Call `ReadApiKeyFile(emulatorDirectory, token)` to load `<emulatorDirectory>/romhackingplaza/api-key.txt`. It accepts a single printable ASCII key with an optional UTF-8 BOM and trailing whitespace. Missing, unreadable, empty or malformed files return false so the frontend can keep its manual key setting. Never package this file or its contents with source or releases.
+Call `ReadApiKeyFile(emulatorDirectory, token)` to load `<emulatorDirectory>/romhackingplaza/api-key.txt`. It creates the `romhackingplaza` directory and an empty key file if they are missing, without changing existing files. It accepts a single printable ASCII key with an optional UTF-8 BOM and trailing whitespace. Unavailable, unreadable, empty or malformed files return false so the frontend can keep its manual key setting. Never package this file or its contents with source or releases.
 
 The documented limits are 30 API requests per minute and 5 download requests per minute. The client shares a conservative process-wide limiter, reports cooldowns, honors HTTP 429 and Retry-After, and never retries automatically. Downloads accept only HTTPS URLs on romhackplaza.org, without redirects or credentials sent to other hosts. Other origins require an explicitly reviewed adapter.
 

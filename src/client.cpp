@@ -10,6 +10,10 @@
 #include <ctime>
 #include <cstdlib>
 #include <cstdio>
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <deque>
 #include <limits>
 #include <map>
@@ -56,9 +60,21 @@ bool ReadApiKeyFile(const std::string& emulatorDirectory, std::string& token) {
  if (emulatorDirectory.empty() || emulatorDirectory.find('\0') != std::string::npos) return false;
  std::string path = emulatorDirectory;
  if (path.back() != '/' && path.back() != '\\') path += '/';
- path += "romhackingplaza/api-key.txt";
- std::FILE* file = std::fopen(path.c_str(), "rb");
- if (!file) return false;
+ path += "romhackingplaza";
+ std::string keyPath = path + "/api-key.txt";
+ std::FILE* file = std::fopen(keyPath.c_str(), "rb");
+ if (!file) {
+  if (errno != ENOENT) return false;
+  if (mkdir(path.c_str(), 0700) != 0 && errno != EEXIST) return false;
+  struct stat directoryInfo;
+  if (stat(path.c_str(), &directoryInfo) != 0 || !S_ISDIR(directoryInfo.st_mode)) return false;
+  int placeholder = open(keyPath.c_str(), O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (placeholder >= 0) {
+   if (close(placeholder) != 0) return false;
+  } else if (errno != EEXIST) return false;
+  file = std::fopen(keyPath.c_str(), "rb");
+  if (!file) return false;
+ }
  char bytes[4097];
  size_t size = std::fread(bytes, 1, sizeof(bytes), file);
  bool failed = std::ferror(file) != 0 || size == sizeof(bytes);

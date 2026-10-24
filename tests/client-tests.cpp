@@ -13,18 +13,31 @@ void keyFileTests() {
  std::string directory = "client-key-test-" + std::to_string(static_cast<unsigned long>(getpid()));
  assert(!mkdir(directory.c_str(), 0700));
  std::string keyDirectory = directory + "/romhackingplaza";
- assert(!mkdir(keyDirectory.c_str(), 0700));
  std::string path = keyDirectory + "/api-key.txt", token = "old";
  assert(!ReadApiKeyFile(directory, token) && token.empty());
+ struct stat info;
+ assert(!stat(keyDirectory.c_str(), &info) && S_ISDIR(info.st_mode));
+ assert(!stat(path.c_str(), &info) && info.st_size == 0);
+ assert(!std::remove(path.c_str()));
+ assert(!ReadApiKeyFile(directory, token) && token.empty());
+ assert(!stat(path.c_str(), &info) && info.st_size == 0);
  auto check = [&](const std::string& bytes, bool valid, const std::string& expected = std::string()) {
   std::FILE* file = std::fopen(path.c_str(), "wb"); assert(file);
   assert(std::fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size()); assert(!std::fclose(file));
   token = "old";
   assert(ReadApiKeyFile(directory, token) == valid);
   assert(token == expected);
+  file = std::fopen(path.c_str(), "rb"); assert(file);
+  std::string unchanged;
+  char buffer[256]; size_t n;
+  while ((n = std::fread(buffer, 1, sizeof(buffer), file))) unchanged.append(buffer, n);
+  assert(!std::ferror(file)); assert(!std::fclose(file)); assert(unchanged == bytes);
  };
  check("", false);
  check("synthetic-token", true, "synthetic-token");
+ assert(!chmod(path.c_str(), 0400));
+ assert(ReadApiKeyFile(directory, token) && token == "synthetic-token");
+ assert(!chmod(path.c_str(), 0600));
  check("synthetic-token\r\n", true, "synthetic-token");
  check("synthetic-token \t\r\n", true, "synthetic-token");
  check("\xef\xbb\xbfsynthetic-token\n", true, "synthetic-token");
@@ -41,7 +54,12 @@ void keyFileTests() {
  assert(!ReadApiKeyFile(std::string("bad\0path", 8), token) && token.empty());
  assert(!std::remove(path.c_str())); assert(!mkdir(path.c_str(), 0700));
  assert(!ReadApiKeyFile(directory, token) && token.empty());
- assert(!rmdir(path.c_str())); assert(!rmdir(keyDirectory.c_str())); assert(!rmdir(directory.c_str()));
+ assert(!rmdir(path.c_str())); assert(!rmdir(keyDirectory.c_str()));
+ std::FILE* obstruction = std::fopen(keyDirectory.c_str(), "wb"); assert(obstruction); assert(!std::fclose(obstruction));
+ assert(!ReadApiKeyFile(directory, token) && token.empty());
+ assert(!std::remove(keyDirectory.c_str()));
+ assert(!ReadApiKeyFile(directory + "/missing-parent", token) && token.empty());
+ assert(!rmdir(directory.c_str()));
 }
 int main() {
  keyFileTests();

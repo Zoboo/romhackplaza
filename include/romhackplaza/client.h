@@ -30,7 +30,7 @@ std::vector<Entry> parseEntries(const std::string& json);
 Entry parseEntry(const std::string& json);
 std::vector<File> parseFiles(const std::string& json);
 bool trustedUrl(const std::string& url);
-// Read an optional emulator-local key file; leave token empty on failure.
+// Create a missing local key directory/file, then read it; leave token empty on failure.
 bool ReadApiKeyFile(const std::string& emulatorDirectory, std::string& token);
 }
 #endif
