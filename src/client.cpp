@@ -9,6 +9,7 @@
 #include <cctype>
 #include <ctime>
 #include <cstdlib>
+#include <cstdio>
 #include <deque>
 #include <limits>
 #include <map>
@@ -49,6 +50,31 @@ curl_easy_setopt(c,CURLOPT_PROTOCOLS_STR,"https");
 curl_easy_setopt(c,CURLOPT_PROTOCOLS,CURLPROTO_HTTPS);
 #endif
 curl_easy_setopt(c,CURLOPT_CONNECTTIMEOUT,15L);curl_easy_setopt(c,CURLOPT_TIMEOUT,180L);curl_easy_setopt(c,CURLOPT_NOSIGNAL,1L);curl_easy_setopt(c,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(c,CURLOPT_SSL_VERIFYHOST,2L);curl_easy_setopt(c,CURLOPT_USERAGENT,"romhackplaza-client/1.0");curl_easy_setopt(c,CURLOPT_WRITEFUNCTION,write);curl_easy_setopt(c,CURLOPT_WRITEDATA,&t);curl_easy_setopt(c,CURLOPT_HEADERFUNCTION,header);curl_easy_setopt(c,CURLOPT_HEADERDATA,&t);curl_easy_setopt(c,CURLOPT_NOPROGRESS,0L);curl_easy_setopt(c,CURLOPT_XFERINFOFUNCTION,progress);curl_easy_setopt(c,CURLOPT_XFERINFODATA,&t);CURLcode result=curl_easy_perform(c);long status=0;curl_easy_getinfo(c,CURLINFO_RESPONSE_CODE,&status);curl_slist_free_all(headers);curl_easy_cleanup(c);if(status==429){std::lock_guard<std::mutex> lock(rateMutex);blocked=std::max(blocked,Clock::now()+std::chrono::seconds(t.retry));throw RateLimitError(t.retry);}if(t.overflow)throw std::runtime_error("Download exceeds size limit");if(result==CURLE_ABORTED_BY_CALLBACK)throw std::runtime_error("Cancelled");if(result!=CURLE_OK)throw std::runtime_error("Network transfer failed");if(status==401||status==403)throw std::runtime_error("API key missing, expired, or lacks required scope");if(status<200||status>=300)throw std::runtime_error("Romhack Plaza HTTP "+std::to_string(status));return t.bytes;}
+}
+bool ReadApiKeyFile(const std::string& emulatorDirectory, std::string& token) {
+ token.clear();
+ if (emulatorDirectory.empty() || emulatorDirectory.find('\0') != std::string::npos) return false;
+ std::string path = emulatorDirectory;
+ if (path.back() != '/' && path.back() != '\\') path += '/';
+ path += "romhackingplaza/api-key.txt";
+ std::FILE* file = std::fopen(path.c_str(), "rb");
+ if (!file) return false;
+ char bytes[4097];
+ size_t size = std::fread(bytes, 1, sizeof(bytes), file);
+ bool failed = std::ferror(file) != 0 || size == sizeof(bytes);
+ if (std::fclose(file)) failed = true;
+ if (failed) return false;
+ size_t start = size >= 3 && static_cast<unsigned char>(bytes[0]) == 0xef &&
+  static_cast<unsigned char>(bytes[1]) == 0xbb && static_cast<unsigned char>(bytes[2]) == 0xbf ? 3 : 0;
+ while (size > start && (bytes[size - 1] == ' ' || bytes[size - 1] == '\t' ||
+  bytes[size - 1] == '\r' || bytes[size - 1] == '\n' || bytes[size - 1] == '\v' || bytes[size - 1] == '\f')) --size;
+ if (size == start || size - start > 1023) return false;
+ for (size_t i = start; i < size; ++i) {
+  unsigned char c = static_cast<unsigned char>(bytes[i]);
+  if (c < 33 || c > 126) return false;
+ }
+ token.assign(bytes + start, size - start);
+ return true;
 }
 RateLimitError::RateLimitError(unsigned s):std::runtime_error("Romhack Plaza limit reached (30 API requests and 5 downloads per minute). Retry in "+std::to_string(s)+" seconds."),retrySeconds(s){}
 bool trustedUrl(const std::string& u){const std::string prefix="https://romhackplaza.org/";if(u.compare(0,prefix.size(),prefix))return false;for (unsigned char c : u) if (c <= 32 || c == 127 || c == '\\') return false; return true;}

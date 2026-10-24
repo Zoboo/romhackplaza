@@ -4,9 +4,47 @@
 #include "romhackplaza/client.h"
 #include <cassert>
 #include <stdexcept>
+#include <cstdio>
+#include <sys/stat.h>
+#include <unistd.h>
 using namespace romhackplaza;
 template<class F> void rejects(F f) { bool failed=false; try {f();} catch(const std::exception&) {failed=true;} assert(failed); }
+void keyFileTests() {
+ std::string directory = "client-key-test-" + std::to_string(static_cast<unsigned long>(getpid()));
+ assert(!mkdir(directory.c_str(), 0700));
+ std::string keyDirectory = directory + "/romhackingplaza";
+ assert(!mkdir(keyDirectory.c_str(), 0700));
+ std::string path = keyDirectory + "/api-key.txt", token = "old";
+ assert(!ReadApiKeyFile(directory, token) && token.empty());
+ auto check = [&](const std::string& bytes, bool valid, const std::string& expected = std::string()) {
+  std::FILE* file = std::fopen(path.c_str(), "wb"); assert(file);
+  assert(std::fwrite(bytes.data(), 1, bytes.size(), file) == bytes.size()); assert(!std::fclose(file));
+  token = "old";
+  assert(ReadApiKeyFile(directory, token) == valid);
+  assert(token == expected);
+ };
+ check("", false);
+ check("synthetic-token", true, "synthetic-token");
+ check("synthetic-token\r\n", true, "synthetic-token");
+ check("synthetic-token \t\r\n", true, "synthetic-token");
+ check("\xef\xbb\xbfsynthetic-token\n", true, "synthetic-token");
+ check("\xef\xbb\xbf", false);
+ check(" leading-space", false);
+ check("embedded space", false);
+ check("first\nsecond", false);
+ check(std::string("token\0suffix", 12), false);
+ check("non-ascii-\xc3\xa9", false);
+ check(std::string(1023, 'x'), true, std::string(1023, 'x'));
+ check(std::string(1024, 'x'), false);
+ check(std::string(5000, 'x'), false);
+ assert(!ReadApiKeyFile("", token) && token.empty());
+ assert(!ReadApiKeyFile(std::string("bad\0path", 8), token) && token.empty());
+ assert(!std::remove(path.c_str())); assert(!mkdir(path.c_str(), 0700));
+ assert(!ReadApiKeyFile(directory, token) && token.empty());
+ assert(!rmdir(path.c_str())); assert(!rmdir(keyDirectory.c_str())); assert(!rmdir(directory.c_str()));
+}
 int main() {
+ keyFileTests();
  auto e=parseEntries("{\"ok\":true,\"data\":[{\"id\":1,\"type\":\"romhacks\",\"title\":\"Pok\\u00e9mon \\ud83c\\udfae\"}]}");
  assert(e.size()==1 && e[0].id==1 && e[0].title=="Pok\xc3\xa9mon \xf0\x9f\x8e\xae");
  auto d=parseEntry("{\"ok\":true,\"data\":{\"id\":2,\"title\":\"Hack\",\"hashes\":[{\"filename\":\"base.gba\",\"hash_crc32\":\"12345678\",\"hash_sha1\":\"abcdef\",\"verified\":\"yes\"}],\"galleries\":[{\"image\":\"https://romhackplaza.org/a.png\",\"order\":1}]}}");
